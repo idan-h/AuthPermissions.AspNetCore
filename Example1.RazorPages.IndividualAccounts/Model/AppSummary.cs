@@ -11,9 +11,9 @@ namespace Example1.RazorPages.IndividualAccounts.Model
         public string MultiTenant { get; } = "- not used -";
         public string[] Databases { get; } = new []
         {
-            "Individual accounts: InMemoryDatabase",
+            "Individual accounts: InMemory Database",
             "AuthPermissions: In-memory database (uses SQLite in-memory)"
         };
-        public string Note { get; } =  "This is a basic example of AuthPermissions Roles and permissions.";
+        public string Note { get; } =  "Shows basics of Roles and permissions, plus multi-language support.";
     }
 }

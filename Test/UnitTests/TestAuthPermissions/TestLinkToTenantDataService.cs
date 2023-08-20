@@ -1,17 +1,12 @@
 ﻿// Copyright (c) 2022 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using AuthPermissions;
 using AuthPermissions.AspNetCore.AccessTenantData.Services;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
-using AuthPermissions.SetupCode;
 using Test.StubClasses;
 using Test.TestHelpers;
 using TestSupport.EfHelpers;
@@ -39,7 +34,7 @@ public class TestLinkToTenantDataService
         context.Database.EnsureCreated();
 
         var tenantIds = context.SetupSingleTenantsInDb();
-        var authUser = AuthUser.CreateAuthUser("user1", "user1@g.com", null, new List<RoleToPermissions>()).Result;
+        var authUser = AuthPSetupHelpers.CreateTestAuthUserOk("user1", "user1@g.com", null);
         context.Add(authUser);
         context.SaveChanges();
         context.ChangeTracker.Clear();
@@ -53,7 +48,8 @@ public class TestLinkToTenantDataService
 
         var cookieStub = new StubIAccessTenantDataCookie();
         var encyptor = new EncryptDecryptService(authOptions);
-        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor);
+        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor,
+            "en".SetupAuthPLoggingLocalizer());
 
         //ATTEMPT
         var status = await service.StartLinkingToTenantDataAsync(authUser.UserId, tenantIds[1]);
@@ -73,9 +69,9 @@ public class TestLinkToTenantDataService
         using var context = new AuthPermissionsDbContext(options);
         context.Database.EnsureCreated();
 
-        var tenant = Tenant.CreateSingleTenant("Tenant1").Result;
+        var tenant = AuthPSetupHelpers.CreateTestSingleTenantOk("Tenant1");
         tenant.UpdateShardingState("MyConnectionName", true);
-        var authUser = AuthUser.CreateAuthUser("user1", "user1@g.com", null, new List<RoleToPermissions>()).Result;
+        var authUser = AuthPSetupHelpers.CreateTestAuthUserOk("user1", "user1@g.com", null);
         context.AddRange(authUser, tenant);
         context.SaveChanges();
         context.ChangeTracker.Clear();
@@ -89,7 +85,8 @@ public class TestLinkToTenantDataService
 
         var cookieStub = new StubIAccessTenantDataCookie();
         var encyptor = new EncryptDecryptService(authOptions);
-        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor);
+        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor,
+            "en".SetupAuthPLoggingLocalizer());
 
         //ATTEMPT
         var status = await service.StartLinkingToTenantDataAsync(authUser.UserId, tenant.TenantId);
@@ -113,7 +110,7 @@ public class TestLinkToTenantDataService
         context.Database.EnsureCreated();
 
         var tenantIds = context.SetupSingleTenantsInDb();
-        var authUser = AuthUser.CreateAuthUser("user1", "user1@g.com", null, new List<RoleToPermissions>()).Result;
+        var authUser = AuthPSetupHelpers.CreateTestAuthUserOk("user1", "user1@g.com", null);
         context.Add(authUser);
         context.SaveChanges();
         context.ChangeTracker.Clear();
@@ -127,7 +124,8 @@ public class TestLinkToTenantDataService
 
         var cookieStub = new StubIAccessTenantDataCookie();
         var encyptor = new EncryptDecryptService(authOptions);
-        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor);
+        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor,
+            "en".SetupAuthPLoggingLocalizer());
 
         //ATTEMPT
         try
@@ -158,7 +156,8 @@ public class TestLinkToTenantDataService
 
         var tenantIds = context.SetupSingleTenantsInDb();
         var tenantToLinkTo = context.Tenants.First();
-        var authUser = AuthUser.CreateAuthUser("user1", "user1@g.com", null, new List<RoleToPermissions>(), tenantToLinkTo).Result;
+        var authUser = AuthPSetupHelpers.CreateTestAuthUserOk("user1", "user1@g.com", null, 
+            new List<RoleToPermissions>(), tenantToLinkTo);
         context.Add(authUser);
         context.SaveChanges();
         context.ChangeTracker.Clear();
@@ -172,7 +171,8 @@ public class TestLinkToTenantDataService
 
         var cookieStub = new StubIAccessTenantDataCookie();
         var encyptor = new EncryptDecryptService(authOptions);
-        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor);
+        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor,
+            "en".SetupAuthPLoggingLocalizer());
 
         //ATTEMPT
         try
@@ -207,7 +207,8 @@ public class TestLinkToTenantDataService
 
         var cookieStub = new StubIAccessTenantDataCookie();
         var encyptor = new EncryptDecryptService(authOptions);
-        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor);
+        var service = new LinkToTenantDataService(context, authOptions, cookieStub, encyptor,
+            "en".SetupAuthPLoggingLocalizer());
 
         //ATTEMPT
         cookieStub.CookieValue = null;

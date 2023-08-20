@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using AuthPermissions.BaseCode.SetupCode;
-using AuthPermissions.SetupCode;
 
 namespace Example1.RazorPages.IndividualAccounts.PermissionsCode
 {
@@ -11,15 +10,15 @@ namespace Example1.RazorPages.IndividualAccounts.PermissionsCode
     {
         public static readonly List<BulkLoadRolesDto> RolesDefinition = new()
         {
-            new("Role1", null, "Permission1"),
-            new("Role2", null, "Permission1, Permission2"),
+            new("Role1", "Staff Role", "Permission1"),
+            new("Role2",  "Manager Role", "Permission1, Permission2"),
             new("SuperAdmin", "Super admin - only use for setup", "AccessAll"),
         };
 
         public static readonly List<BulkLoadUserWithRolesTenant> UsersWithRolesDefinition = new()
         {
             new ("Staff@g1.com", null, "Role1"),
-            new ("Mananger@g1.com", null, "Role2"),
+            new ("Manager@g1.com", null, "Role2"),
             new ( "Super@g1.com", null, "SuperAdmin"),
         };
     }

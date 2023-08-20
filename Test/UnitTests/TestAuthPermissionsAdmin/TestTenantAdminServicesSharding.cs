@@ -3,12 +3,11 @@
 
 using System.Linq;
 using System.Threading.Tasks;
-using AuthPermissions;
+using AuthPermissions.AdminCode;
 using AuthPermissions.AdminCode.Services;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
-using AuthPermissions.SetupCode;
 using Test.StubClasses;
 using Test.TestHelpers;
 using TestSupport.EfHelpers;
@@ -19,6 +18,10 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin;
 
 public class TestTenantAdminServicesSharding
 {
+    private readonly AuthPermissionsOptions _authOptionsSingleSharding =
+        new() { TenantType = TenantTypes.SingleLevel | TenantTypes.AddSharding };
+    private readonly AuthPermissionsOptions _authOptionsHierarchicalSharding =
+        new() { TenantType = TenantTypes.HierarchicalTenant | TenantTypes.AddSharding };
 
     [Fact]
     public async Task TestSetupSingleShardingTenantsInDbOk()
@@ -52,10 +55,10 @@ public class TestTenantAdminServicesSharding
         await context.SetupSingleShardingTenantsInDbAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.SingleLevel | TenantTypes.AddSharding },
-            tenantChange, null);
+            _authOptionsSingleSharding, "en".SetupAuthPLoggingLocalizer(),
+            tenantChange,  null);
 
         //ATTEMPT
         var status = await service.AddSingleTenantAsync("Tenant4", null, true,"MyConnectionName");
@@ -81,9 +84,9 @@ public class TestTenantAdminServicesSharding
         await context.SetupSingleShardingTenantsInDbAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.SingleLevel | TenantTypes.AddSharding },
+            _authOptionsSingleSharding, "en".SetupAuthPLoggingLocalizer(),
             tenantChange, null);
 
         //ATTEMPT
@@ -91,7 +94,7 @@ public class TestTenantAdminServicesSharding
 
         //VERIFY
         status.IsValid.ShouldBeFalse();
-        status.GetAllErrors().ShouldEqual("The hasOwnDb parameter must be set to true or false when sharding is turned on.");
+        status.GetAllErrors().ShouldEqual("The 'hasOwnDb' parameter must be set to true or false when sharding is turned on.");
     }
 
     [Fact]
@@ -105,9 +108,9 @@ public class TestTenantAdminServicesSharding
         await context.SetupSingleShardingTenantsInDbAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.SingleLevel | TenantTypes.AddSharding },
+            _authOptionsSingleSharding, "en".SetupAuthPLoggingLocalizer(),
             tenantChange, null);
 
         //ATTEMPT
@@ -151,9 +154,9 @@ public class TestTenantAdminServicesSharding
         var tenantIds = await context.BulkLoadHierarchicalTenantShardingAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.HierarchicalTenant | TenantTypes.AddSharding },
+            _authOptionsHierarchicalSharding, "en".SetupAuthPLoggingLocalizer(),
             tenantChange, null);
 
         //ATTEMPT
@@ -180,9 +183,9 @@ public class TestTenantAdminServicesSharding
         var tenantIds = await context.BulkLoadHierarchicalTenantShardingAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.HierarchicalTenant | TenantTypes.AddSharding },
+            _authOptionsHierarchicalSharding, "en".SetupAuthPLoggingLocalizer(),
             tenantChange, null);
 
         //ATTEMPT
@@ -209,9 +212,9 @@ public class TestTenantAdminServicesSharding
         var tenantIds = await context.BulkLoadHierarchicalTenantShardingAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.HierarchicalTenant | TenantTypes.AddSharding },
+            _authOptionsHierarchicalSharding, "en".SetupAuthPLoggingLocalizer(),
             tenantChange, null);
 
         //ATTEMPT
@@ -236,9 +239,9 @@ public class TestTenantAdminServicesSharding
         var tenantIds = await context.BulkLoadHierarchicalTenantShardingAsync();
         context.ChangeTracker.Clear();
 
-        var tenantChange = new StubITenantChangeServiceFactory();
+        var tenantChange = new StubTenantChangeServiceFactory();
         var service = new AuthTenantAdminService(context,
-            new AuthPermissionsOptions { TenantType = TenantTypes.HierarchicalTenant | TenantTypes.AddSharding },
+            _authOptionsHierarchicalSharding, "en".SetupAuthPLoggingLocalizer(),
             tenantChange, null);
 
         //ATTEMPT

@@ -1,6 +1,5 @@
 ﻿using AuthPermissions.AspNetCore;
-using AuthPermissions.AspNetCore.Services;
-using AuthPermissions.SupportCode.ShardingServices;
+using AuthPermissions.AspNetCore.ShardingServices;
 using Example6.MvcWebApp.Sharding.Models;
 using Example6.MvcWebApp.Sharding.PermissionsCode;
 using Microsoft.AspNetCore.Mvc;
@@ -9,11 +8,11 @@ namespace Example6.MvcWebApp.Sharding.Controllers;
 
 public class ShardingController : Controller
 {
-    private readonly IAccessDatabaseInformation _dbInfoService;
+    private readonly IGetSetShardingEntries _shardingService;
 
-    public ShardingController(IAccessDatabaseInformation dbInfoService)
+    public ShardingController(IGetSetShardingEntries shardingService)
     {
-        _dbInfoService = dbInfoService;
+        _shardingService = shardingService;
     }
 
     [HasPermission(Example6Permissions.ListDatabaseInfos)]
@@ -21,16 +20,16 @@ public class ShardingController : Controller
     {
         ViewBag.Message = message;
 
-        return View(_dbInfoService.ReadShardingSettingsFile());
+        return View(_shardingService.GetAllShardingEntries());
     }
 
     [HasPermission(Example6Permissions.TenantCreate)]
-    public IActionResult Create([FromServices] IShardingConnections service)
+    public IActionResult Create()
     {
-        var dto = new DatabaseInformationEdit
+        var dto = new ShardingEntryEdit
         {
-            AllPossibleConnectionNames = service.GetConnectionStringNames(),
-            PossibleDatabaseTypes = service.GetSupportedDatabaseTypes()
+            AllPossibleConnectionNames = _shardingService.GetConnectionStringNames(),
+            PossibleDatabaseTypes = _shardingService.PossibleDatabaseProviders
         };
 
         return View(dto);
@@ -39,9 +38,9 @@ public class ShardingController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [HasPermission(Example6Permissions.TenantCreate)]
-    public IActionResult Create(DatabaseInformationEdit data)
+    public IActionResult Create(ShardingEntryEdit data)
     {
-        var status = _dbInfoService.AddDatabaseInfoToJsonFile(data.DatabaseInfo);
+        var status = _shardingService.AddNewShardingEntry(data.DatabaseInfo);
 
         if (status.HasErrors)
             return RedirectToAction(nameof(ErrorDisplay),
@@ -51,18 +50,18 @@ public class ShardingController : Controller
     }
 
     [HasPermission(Example6Permissions.UpdateDatabaseInfo)]
-    public ActionResult Edit([FromServices] IShardingConnections service, string name)
+    public ActionResult Edit(string name)
     {
-        var dto = new DatabaseInformationEdit
+        var dto = new ShardingEntryEdit
         {
-            DatabaseInfo = _dbInfoService.GetDatabaseInformationByName(name),
-            AllPossibleConnectionNames = service.GetConnectionStringNames(),
-            PossibleDatabaseTypes = service.GetSupportedDatabaseTypes()
+            DatabaseInfo = _shardingService.GetSingleShardingEntry(name),
+            AllPossibleConnectionNames = _shardingService.GetConnectionStringNames(),
+            PossibleDatabaseTypes = _shardingService.PossibleDatabaseProviders
         };
 
         if (dto.DatabaseInfo == null)
             return RedirectToAction(nameof(ErrorDisplay),
-                new { errorMessage = $"Could not find a database information with the name {name}." });
+                new { errorMessage = $"Could not find a sharding entry with the name {name}." });
 
         return View(dto);
     }
@@ -70,9 +69,9 @@ public class ShardingController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [HasPermission(Example6Permissions.AddDatabaseInfo)]
-    public ActionResult Edit(DatabaseInformationEdit data)
+    public ActionResult Edit(ShardingEntryEdit data)
     {
-        var status = _dbInfoService.UpdateDatabaseInfoToJsonFile(data.DatabaseInfo);
+        var status = _shardingService.UpdateShardingEntry(data.DatabaseInfo);
 
         if (status.HasErrors)
             return RedirectToAction(nameof(ErrorDisplay),
@@ -84,9 +83,9 @@ public class ShardingController : Controller
     [HasPermission(Example6Permissions.RemoveDatabaseInfo)]
     public IActionResult Remove(string name)
     {
-        if (_dbInfoService.GetDatabaseInformationByName(name) == null)
+        if (_shardingService.GetSingleShardingEntry(name) == null)
             return RedirectToAction(nameof(ErrorDisplay),
-                new { errorMessage = "Could not find that database information." });
+                new { errorMessage = $"Could not find the sharding entry with the name of '{name}'." });
 
         return View((object)name);
     }
@@ -94,9 +93,9 @@ public class ShardingController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [HasPermission(Example6Permissions.RemoveDatabaseInfo)]
-    public async Task<IActionResult> Remove(string nameToRemove, bool dummyValue)
+    public IActionResult Remove(string nameToRemove, bool dummyValue)
     {
-        var status = await _dbInfoService.RemoveDatabaseInfoToJsonFileAsync(nameToRemove);
+        var status = _shardingService.RemoveShardingEntry(nameToRemove);
 
         return status.HasErrors
             ? RedirectToAction(nameof(ErrorDisplay),

@@ -1,8 +1,23 @@
 # Release Notes
 
-## Not approved
+This document isn't updated anymore because the [Roadmap discussions](https://github.com/JonPSmith/AuthPermissions.AspNetCore/discussions/2) page lists all the changes.
 
-- Improved feature: Changed JWT refresh token to handle multiple logged-in users - see issue #54
+## 4.1.0
+
+- Adds a service which can handle multiple languages (known in .NET a localization)
+
+## 4.0.0
+
+- Improved feature: Now supports .NET6 and .NET 7 frameworks.
+- Updated all the .NET 6 NuGets to the latest versions.
+- Simplification (non-breaking): All tenant version now have a `DataKey` of length of 250.
+
+## 3.5.0
+
+- BREAKING CHANGE (small): The DisableJwtRefreshToken service has been updated to handle multiple logins from one user
+- BREAKING CHANGE (small): Changed TenantChangeCookieEvent name to SomethingChangedCookieEvent
+- Improved feature: AuthPermissionsDbContext now takes multiple IDatabaseStateChangeEvent
+- Improved feature: No AuthP database event change listeners will be triggered during bulk loading
 
 ## 3.4.0
 
@@ -14,7 +29,7 @@
 - Improved feature: The RefreshUsersClaims classes have been moved to SupportCode project and a few classes have been renamed
 - Improved feature: Sharding now has distributed lock on changes to the shardingsettings.json file
 - Improved feature: The AuthUserAdmin method QueryAuthUsers now takes an optional DatabaseInfoName to allow tenant admin users on sharding
-- Bug Fix: The ReadShardingSettingsFile now return the default sharding DatabaseInformation if no sharding file is found
+- Bug Fix: The ReadShardingSettingsFile now return the default sharding ShardingEntry if no sharding file is found
 - Updated NuGets: There was a security alert on one of the NuGets. All the NuGets have been updated to the latest 
 
 ## 3.3.0

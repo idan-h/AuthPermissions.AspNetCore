@@ -1,22 +1,20 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions;
 using AuthPermissions.AdminCode;
 using AuthPermissions.AspNetCore;
+using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
-using AuthPermissions.SetupCode;
 using Example4.MvcWebApp.IndividualAccounts.PermissionsCode;
 using Example6.MvcWebApp.Sharding.PermissionsCode;
 using ExamplesCommonCode.CommonAdmin;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Test.StubClasses;
+using Test.TestHelpers;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Extensions.AssertExtensions;
@@ -35,6 +33,7 @@ namespace Test.UnitTests.TestExamples
         private async Task<(AuthPermissionsDbContext context, ServiceProvider serviceProvider)> SetupExample4DataAsync()
         {
             var services = new ServiceCollection();
+            services.AddLogging();
             var serviceProvider = await services.RegisterAuthPermissions<Example4Permissions>(options =>
                 {
                     options.TenantType = TenantTypes.HierarchicalTenant;
@@ -54,6 +53,7 @@ namespace Test.UnitTests.TestExamples
         private async Task<(AuthPermissionsDbContext context, ServiceProvider serviceProvider)> SetupExample6DataAsync()
         {
             var services = new ServiceCollection();
+            services.AddLogging();
             var serviceProvider = await services.RegisterAuthPermissions<Example6Permissions>(options =>
                 {
                     options.TenantType = TenantTypes.SingleLevel | TenantTypes.AddSharding;
@@ -223,7 +223,8 @@ namespace Test.UnitTests.TestExamples
             var authUserUpdate = (await SetupManualUserChange.PrepareForUpdateAsync(userId, adminUserService)).Result;
 
             //ATTEMPT
-            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService);
+            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService, 
+                "en".SetupAuthPLoggingLocalizer());
 
             //VERIFY
             status.IsValid.ShouldBeTrue(status.GetAllErrors());
@@ -248,7 +249,8 @@ namespace Test.UnitTests.TestExamples
             //ATTEMPT
             authUserUpdate.FoundChangeType = SyncAuthUserChangeTypes.Update;
             authUserUpdate.RoleNames = new List<string> {"Area Manager", "Tenant Admin" };
-            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService);
+            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService,
+                "en".SetupAuthPLoggingLocalizer());
 
             //VERIFY
             status.IsValid.ShouldBeTrue(status.GetAllErrors());
@@ -274,7 +276,8 @@ namespace Test.UnitTests.TestExamples
             authUserUpdate.UserId = "newuser@gmail.com";
             authUserUpdate.Email = "newuser@gmail.com";
             authUserUpdate.UserName = "newuser@gmail.com";
-            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService);
+            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService,
+                "en".SetupAuthPLoggingLocalizer());
 
             //VERIFY
             status.IsValid.ShouldBeTrue(status.GetAllErrors());
@@ -299,7 +302,8 @@ namespace Test.UnitTests.TestExamples
             //ATTEMPT
             authUserUpdate.FoundChangeType = SyncAuthUserChangeTypes.Update;
             authUserUpdate.TenantName = "Bad tenant name";
-            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService);
+            var status = await authUserUpdate.ChangeAuthUserFromDataAsync(adminUserService,
+                "en".SetupAuthPLoggingLocalizer());
 
             //VERIFY
             status.IsValid.ShouldBeFalse();

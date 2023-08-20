@@ -1,10 +1,6 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions.AdminCode;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
@@ -13,6 +9,7 @@ using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
 using AuthPermissions.BulkLoadServices.Concrete.Internal;
 using AuthPermissions.SetupCode.Factories;
+using LocalizeMessagesAndErrors.UnitTestingCode;
 using Microsoft.EntityFrameworkCore;
 using StatusGeneric;
 
@@ -20,6 +17,7 @@ namespace AuthPermissions.BulkLoadServices.Concrete
 {
     /// <summary>
     /// This allows you to bulk load users, with their Roles and (optional) Tenant
+    /// NOTE: Bulk load doesn't use localization because it doesn't provide to the users
     /// </summary>
     public class BulkLoadUsersService : IBulkLoadUsersService
     {
@@ -60,7 +58,7 @@ namespace AuthPermissions.BulkLoadServices.Concrete
             }
 
             if (status.IsValid)
-                status.CombineStatuses(await _context.SaveChangesWithChecksAsync());
+                status.CombineStatuses(await _context.SaveChangesWithChecksAsync(new StubDefaultLocalizer()));
 
             status.Message = $"Added {userDefinitions.Count} new users with associated data to the auth database";
             return status;
@@ -118,7 +116,8 @@ namespace AuthPermissions.BulkLoadServices.Concrete
                         $"The user {userName} has a tenant name of {userDefine.TenantNameForDataKey} which wasn't found in the auth database."));
             }
 
-            var authUserStatus = AuthUser.CreateAuthUser(userId, userDefine.Email, userName, rolesToPermissions, userTenant);
+            var authUserStatus = AuthUser.CreateAuthUser(userId, userDefine.Email, userName, rolesToPermissions, 
+                new StubDefaultLocalizer(), userTenant);
             if (status.CombineStatuses(authUserStatus).HasErrors)
                 return status;
 

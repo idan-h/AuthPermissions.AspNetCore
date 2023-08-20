@@ -1,9 +1,6 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using StatusGeneric;
 
@@ -70,8 +67,8 @@ namespace AuthPermissions.AdminCode
         /// <param name="roleNames">The rolenames of this user</param>
         /// <param name="tenantName">If null, then keeps current tenant. If "" will remove a tenant link.
         /// Otherwise the user will be linked to the tenant with that name.</param>
-        /// <returns></returns>
-        Task<IStatusGeneric> AddNewUserAsync(string userId, string email,
+        /// <returns>Status, with created AuthUser</returns>
+        Task<IStatusGeneric<AuthUser>> AddNewUserAsync(string userId, string email,
             string userName, List<string> roleNames, string tenantName = null);
 
         /// <summary>

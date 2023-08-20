@@ -2,7 +2,7 @@
 // Licensed under MIT license. See License.txt in the project root for license information.
 
 using AuthPermissions.AspNetCore.AccessTenantData;
-using AuthPermissions.AspNetCore.Services;
+using AuthPermissions.AspNetCore.ShardingServices;
 using AuthPermissions.BaseCode.CommonCode;
 using Microsoft.AspNetCore.Http;
 
@@ -24,7 +24,7 @@ namespace AuthPermissions.AspNetCore.GetDataKeyCode
         /// <param name="connectionService">Service to get the current connection string for the  </param>
         /// <param name="linkService"></param>
         public GetShardingDataUserAccessTenantData(IHttpContextAccessor accessor, 
-            IShardingConnections connectionService,
+            IGetSetShardingEntries connectionService,
             ILinkToTenantDataService linkService)
         {
             var overrideLink = linkService.GetShardingDataOfLinkedTenant();

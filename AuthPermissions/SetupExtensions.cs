@@ -57,15 +57,17 @@ namespace AuthPermissions
             if (setupData.Options.InternalData.AuthPDatabaseType != AuthPDatabaseTypes.NotSet)
                 throw new AuthPermissionsException("You have already set up a database type for AuthP.");
 
+            setupData.Options.InternalData.AuthPDatabaseType = AuthPDatabaseTypes.SqlServer;
+
             setupData.Services.AddDbContext<AuthPermissionsDbContext>(
                 options =>
                 {
                     options.UseSqlServer(connectionString, dbOptions =>
                         dbOptions.MigrationsHistoryTable(AuthDbConstants.MigrationsHistoryTableName)
                         .MigrationsAssembly("AuthPermissions.SqlServer"));
-                    EntityFramework.Exceptions.SqlServer.ExceptionProcessorExtensions.UseExceptionProcessor(options);
+                    EntityFramework.Exceptions.SqlServer.
+                        ExceptionProcessorExtensions.UseExceptionProcessor(options);
                 });
-            setupData.Options.InternalData.AuthPDatabaseType = AuthPDatabaseTypes.SqlServer;
 
             setupData.Options.InternalData.RunSequentiallyOptions =
                 setupData.Services.RegisterRunMethodsSequentially(options =>
@@ -110,7 +112,7 @@ namespace AuthPermissions
                         .MigrationsAssembly("AuthPermissions.PostgreSql"));
                     EntityFramework.Exceptions.PostgreSQL.ExceptionProcessorExtensions.UseExceptionProcessor(options);
                 });
-            setupData.Options.InternalData.AuthPDatabaseType = AuthPDatabaseTypes.Postgres;
+            setupData.Options.InternalData.AuthPDatabaseType = AuthPDatabaseTypes.PostgreSQL;
 
             setupData.Options.InternalData.RunSequentiallyOptions =
                 setupData.Services.RegisterRunMethodsSequentially(options =>

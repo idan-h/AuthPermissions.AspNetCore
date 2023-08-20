@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AuthPermissions;
+using AuthPermissions.AdminCode;
 using AuthPermissions.AdminCode.Services;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
@@ -42,13 +43,14 @@ public class TestInviteNewUserService
         {
             EncryptionKey = "asfafffggdgerxbd", TenantType = tenantType
         };
-        var userAdmin = new AuthUsersAdminService(context, new StubSyncAuthenticationUsersFactory(), authOptions);
+        var userAdmin = new AuthUsersAdminService(context, new StubSyncAuthenticationUsersFactory(), 
+            authOptions, "en".SetupAuthPLoggingLocalizer());
         var encryptService = new EncryptDecryptService(authOptions);
         var service = new InviteNewUserService(authOptions, context, encryptService, userAdmin, 
-                new StubAddNewUserManager(userAdmin));
+                new StubAddNewUserManager(userAdmin), "en".SetupAuthPLoggingLocalizer());
 
         if (tenantType == TenantTypes.SingleLevel)
-            context.Add(Tenant.CreateSingleTenant("Company").Result);
+            context.Add(AuthPSetupHelpers.CreateTestSingleTenantOk("Company"));
         else if (tenantType == TenantTypes.HierarchicalTenant)
             await context.BulkLoadHierarchicalTenantInDbAsync();
         context.SaveChanges();
@@ -149,28 +151,32 @@ public class TestInviteNewUserService
     }
 
     [Fact]
-    public void TestListOfExpirationTimes()
+    public async Task TestListOfExpirationTimes()
     {
         //SETUP
+        var options = SqliteInMemory.CreateOptions<AuthPermissionsDbContext>();
+        using var context = new AuthPermissionsDbContext(options);
+        context.Database.EnsureCreated();
+        var tuple = await CreateInviteAndAddSenderAuthUserAsync(context);
+
         var utcNowPlusOneHour = DateTime.UtcNow.AddHours(1);
 
         //ATTEMPT
-        var list = InviteNewUserService.ListOfExpirationTimes();
+        var list = tuple.service.ListOfExpirationTimes();
 
         //VERIFY
         var oneHourExpire = new DateTime(list[1].Key);
         _output.WriteLine($"Expected value = {utcNowPlusOneHour:O}, Actual value = {oneHourExpire:O}");
         oneHourExpire.Ticks.ShouldBeInRange(oneHourExpire.AddMilliseconds(-100).Ticks, oneHourExpire.AddMilliseconds(+100).Ticks);
-        list.Select(x => x.Value).ShouldEqual( new List<string>
-        {
-            "Invite is valid forever.",
-            "Invite is only valid for 1 hour from now.",
-            "Invite is only valid for 6 hours from now.",
-            "Invite is only valid for 24 hours from now.",
-            "Invite is only valid for 3 days from now.",
-            "Invite is only valid for 7 days from now.",
-            "Invite is only valid for 20 days from now."
-        });
+        var values = list.Select(x => x.Value).ToList();
+        values.Count.ShouldEqual(7);
+        values[0].ShouldEqual("Invite is valid forever.");
+        values[1].ShouldEqual("Invite is only valid for 1 hour from now.");
+        values[2].ShouldEqual("Invite is only valid for 6 hours from now.");
+        values[3].ShouldEqual("Invite is only valid for 24 hours from now.");
+        values[4].ShouldEqual("Invite is only valid for 3 days from now.");
+        values[5].ShouldEqual("Invite is only valid for 7 days from now.");
+        values[6].ShouldEqual("Invite is only valid for 20 days from now.");
 
     }
 
@@ -252,7 +258,7 @@ public class TestInviteNewUserService
         context.Database.EnsureCreated();
 
         var tuple = await CreateInviteAndAddSenderAuthUserAsync(context, tenantType);
-        context.Add( AuthUser.CreateAuthUser("AppAdminId", "AppAdmin@g.com", null, new List<RoleToPermissions>()).Result);
+        context.Add(AuthPSetupHelpers.CreateTestAuthUserOk("AppAdminId", "AppAdmin@g.com", null));
         context.SaveChanges();
 
         context.ChangeTracker.Clear();

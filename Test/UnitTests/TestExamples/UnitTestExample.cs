@@ -1,16 +1,12 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions;
 using AuthPermissions.AdminCode;
 using AuthPermissions.AspNetCore;
 using AuthPermissions.BaseCode.DataLayer.Classes.SupportTypes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
-using AuthPermissions.SetupCode;
 using Example4.MvcWebApp.IndividualAccounts.PermissionsCode;
 using Microsoft.Extensions.DependencyInjection;
 using Test.StubClasses;
@@ -27,6 +23,7 @@ namespace Test.UnitTests.TestExamples
         {
             //SETUP
             var services = new ServiceCollection();
+            services.AddLogging();
             var serviceProvider = await services.RegisterAuthPermissions<Example4Permissions>(options =>
                 {
                     options.TenantType = TenantTypes.HierarchicalTenant;
@@ -49,7 +46,8 @@ namespace Test.UnitTests.TestExamples
             var rereadUser = status.Result;
             rereadUser.Email.ShouldEqual(userId.ToLower());
             rereadUser.UserName.ShouldEqual(userId);
-            rereadUser.UserRoles.Select(x => x.RoleName).ShouldEqual(new List<string> { "Tenant Admin", "Area Manager" });
+            rereadUser.UserRoles.OrderBy(x => x.RoleName)
+                .Select(x => x.RoleName).ShouldEqual(new List<string> { "Area Manager", "Tenant Admin" });
             rereadUser.UserTenant.TenantFullName.ShouldEqual("4U Inc.");
         }
 

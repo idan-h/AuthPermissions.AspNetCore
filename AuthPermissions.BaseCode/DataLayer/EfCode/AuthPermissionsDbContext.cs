@@ -14,6 +14,8 @@ namespace AuthPermissions.BaseCode.DataLayer.EfCode
     /// </summary>
     public class AuthPermissionsDbContext : DbContext
     {
+        private readonly ICustomConfiguration _customConfiguration;
+
         /// <summary>
         /// This overcomes the exception if the class used in the tests which uses the <see cref="IModelCacheKeyFactory"/>
         /// to allow testing of an DbContext that works with SqlServer and PostgreSQL 
@@ -24,13 +26,20 @@ namespace AuthPermissions.BaseCode.DataLayer.EfCode
         /// ctor
         /// </summary>
         /// <param name="options"></param>
-        /// <param name="eventSetup">OPTIONAL: If provided, then a method will be run within the ctor</param>
+        /// <param name="eventSetups">OPTIONAL: If provided, then a method will be run within the ctor</param>
+        /// <param name="customConfiguration">OPTIONAL: This allows to provide a custom configuration to the DbContext</param>
         public AuthPermissionsDbContext(DbContextOptions<AuthPermissionsDbContext> options,
-            IDatabaseStateChangeEvent eventSetup = null)
+            IEnumerable<IDatabaseStateChangeEvent> eventSetups = null,
+            ICustomConfiguration customConfiguration = null)
             : base(options)
         {
-            eventSetup?.RegisterEventHandlers(this);
+            foreach (var eventSetup in eventSetups ?? Array.Empty<IDatabaseStateChangeEvent>())
+            {
+                eventSetup.RegisterEventHandlers(this);
+            }
+
             ProviderName = this.Database.ProviderName;
+            _customConfiguration = customConfiguration;
         }
 
         /// <summary>
@@ -89,6 +98,10 @@ namespace AuthPermissions.BaseCode.DataLayer.EfCode
                 //NOTE: Sqlite doesn't support concurrency support, but if needed it can be added
                 //see https://www.bricelam.net/2020/08/07/sqlite-and-efcore-concurrency-tokens.html
             }
+
+            //This allows a developer to add a custom configuration to this DbContext
+            //Typical use is to set up the concurrency tokens parts when using a custom database type  
+            _customConfiguration?.ApplyCustomConfiguration(modelBuilder);
 
             modelBuilder.Entity<AuthUser>()
                 .HasIndex(x => x.Email)

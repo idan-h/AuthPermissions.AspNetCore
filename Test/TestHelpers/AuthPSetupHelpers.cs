@@ -1,10 +1,6 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
@@ -23,6 +19,86 @@ namespace Test.TestHelpers
 {
     public static class AuthPSetupHelpers
     {
+        /// <summary>
+        /// Use this to create a AuthUser in your tests
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="email"></param>
+        /// <param name="userName"></param>
+        /// <param name="roles"></param>
+        /// <param name="userTenant"></param>
+        /// <returns></returns>
+        public static AuthUser CreateTestAuthUserOk(string userId, string email, string userName,
+            List<RoleToPermissions> roles = null, Tenant userTenant = null)
+        {
+            var status = AuthUser.CreateAuthUser(userId, email, userName, roles ?? new List<RoleToPermissions>(),
+                "en".SetupAuthPLoggingLocalizer().DefaultLocalizer, userTenant);
+            status.IfErrorsTurnToException();
+            return status.Result;
+        }
+
+        /// <summary>
+        /// Use this to create a SingleTenant Tenant in your tests
+        /// </summary>
+        /// <param name="fullTenantName"></param>
+        /// <param name="tenantRoles"></param>
+        /// <returns></returns>
+        public static Tenant CreateTestSingleTenantOk(string fullTenantName, List<RoleToPermissions> tenantRoles = null)
+        {
+            var status = Tenant.CreateSingleTenant(fullTenantName, 
+                "en".SetupAuthPLoggingLocalizer().DefaultLocalizer, tenantRoles);
+            status.IfErrorsTurnToException();
+            return status.Result;
+        }
+
+        /// <summary>
+        /// Use this to create a Hierarchical Tenant in your tests
+        /// </summary>
+        /// <param name="fullTenantName"></param>
+        /// <param name="tenantRoles"></param>
+        /// <returns></returns>
+        public static Tenant CreateTestHierarchicalTenantOk(string fullTenantName, Tenant parent, List<RoleToPermissions> tenantRoles = null)
+        {
+            var status = Tenant.CreateHierarchicalTenant(fullTenantName, parent,
+                "en".SetupAuthPLoggingLocalizer().DefaultLocalizer, tenantRoles);
+            status.IfErrorsTurnToException();
+            return status.Result;
+        }
+
+        /// <summary>
+        /// Use this to create a single sharding Tenant in your tests
+        /// </summary>
+        /// <param name="fullTenantName"></param>
+        /// <param name="databaseInfoName"></param>
+        /// <param name="hasOwnDb"></param>
+        /// <returns></returns>
+        public static Tenant CreateSingleShardingTenant(this string fullTenantName, string databaseInfoName, bool hasOwnDb)
+        {
+            var status = Tenant.CreateSingleTenant(fullTenantName,
+                "en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
+            status.IfErrorsTurnToException();
+            status.Result.UpdateShardingState(databaseInfoName, hasOwnDb);
+            return status.Result;
+        }
+
+        /// <summary>
+        /// Use this to create a hierarchical sharding Tenant in your tests
+        /// </summary>
+        /// <param name="fullTenantName"></param>
+        /// <param name="databaseInfoName"></param>
+        /// <param name="hasOwnDb"></param>
+        /// <param name="parentTenant"></param>
+        /// <returns></returns>
+        public static Tenant CreateHierarchicalShardingTenant(this string fullTenantName, string databaseInfoName,
+            bool hasOwnDb, Tenant? parentTenant = null)
+        {
+            var status = Tenant.CreateHierarchicalTenant(fullTenantName, parentTenant,
+                "en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
+            status.IfErrorsTurnToException();
+            status.Result.UpdateShardingState(databaseInfoName, hasOwnDb);
+            return status.Result;
+        }
+
         public static AuthPJwtConfiguration CreateTestJwtSetupData(TimeSpan expiresIn = default)
         {
 
@@ -64,8 +140,8 @@ namespace Test.TestHelpers
             var tenant = tenantName != null
                 ? context.Tenants.Single(x => x.TenantFullName == tenantName)
                 : null;
-            var user = AuthUser.CreateAuthUser("User1", email, null, 
-                new List<RoleToPermissions>() { rolePer1 }, tenant).Result;
+            var user = CreateTestAuthUserOk("User1", email, null, 
+                new List<RoleToPermissions>() { rolePer1 }, tenant);
             context.Add(user);
             context.SaveChanges();
         }
@@ -81,8 +157,8 @@ namespace Test.TestHelpers
             var userIds = userIdCommaDelimited.Split(',');
             for (int i = 0; i < userIds.Length; i++)
             {
-                var user = AuthUser.CreateAuthUser(userIds[i], $"{userIds[i]}@gmail.com", 
-                    $"first last {i}", rolesInDb.Take(i+1).ToList()).Result;
+                var user = CreateTestAuthUserOk(userIds[i], $"{userIds[i]}@gmail.com", 
+                    $"first last {i}", rolesInDb.Take(i+1).ToList());
                 context.Add(user);
             }
             context.SaveChanges();
@@ -92,9 +168,9 @@ namespace Test.TestHelpers
         {
             var tenants = new []
             {
-                Tenant.CreateSingleTenant("Tenant1").Result,
-                Tenant.CreateSingleTenant("Tenant2").Result,
-                Tenant.CreateSingleTenant("Tenant3").Result,
+                CreateTestSingleTenantOk("Tenant1"),
+                CreateTestSingleTenantOk("Tenant2"),
+                CreateTestSingleTenantOk("Tenant3"),
             };
 
             context.AddRange(tenants);
@@ -124,9 +200,9 @@ namespace Test.TestHelpers
         {
             var tenants = new List<Tenant>
             {
-                Tenant.CreateSingleTenant("Tenant1").Result,
-                Tenant.CreateSingleTenant("Tenant2").Result,
-                Tenant.CreateSingleTenant("Tenant3").Result,
+                CreateTestSingleTenantOk("Tenant1"),
+                CreateTestSingleTenantOk("Tenant2"),
+                CreateTestSingleTenantOk("Tenant3"),
             };
 
             tenants.ForEach(x => x.UpdateShardingState("Default Database", false));

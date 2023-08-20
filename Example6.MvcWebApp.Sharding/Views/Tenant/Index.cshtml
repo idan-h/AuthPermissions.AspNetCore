@@ -1,6 +1,6 @@
 ﻿@using Example6.MvcWebApp.Sharding.PermissionsCode
 @using AuthPermissions.BaseCode.PermissionsCode
-@model IEnumerable<Example6.MvcWebApp.Sharding.Models.ShardingSingleLevelTenantDto>
+@model IEnumerable<Example6.MvcWebApp.Sharding.Models.HybridShardingTenantDto>
 
 @{
     ViewData["Title"] = "ListTenants";
@@ -29,7 +29,7 @@
             DataKey
         </th>
         <th>
-            DatabaseInfoName
+            Sharding Name
         </th>
         <th>
             HasOwnDb
@@ -50,7 +50,7 @@
                 @item.DataKey
             </td>
             <td>
-                @item.ConnectionName
+                @item.ShardingName
             </td>
             <td>
                 @item.HasOwnDb

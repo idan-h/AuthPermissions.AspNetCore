@@ -1,12 +1,13 @@
 ﻿@using AuthPermissions.BaseCode.PermissionsCode
 @using Example6.MvcWebApp.Sharding.PermissionsCode
-@model IEnumerable<AuthPermissions.AspNetCore.Services.DatabaseInformation>
+@using Microsoft.AspNetCore.Mvc.TagHelpers
+@model IEnumerable<AuthPermissions.AspNetCore.ShardingServices.ShardingEntry>
 
 @{
     ViewData["Title"] = "Database Info";
 }
 
-<h1>List database Information</h1>
+<h1>List sharding entries</h1>
 
 @if (!string.IsNullOrEmpty(ViewBag.Message))
 {

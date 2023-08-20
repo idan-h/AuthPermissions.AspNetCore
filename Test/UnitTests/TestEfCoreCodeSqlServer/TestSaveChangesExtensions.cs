@@ -3,10 +3,13 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using EntityFramework.Exceptions.SqlServer;
 using Microsoft.EntityFrameworkCore;
+using Test.StubClasses;
+using Test.TestHelpers;
 using TestSupport.EfHelpers;
 using Xunit;
 using Xunit.Extensions.AssertExtensions;
@@ -26,7 +29,7 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
 
             //ATTEMPT
             context.Add(new RoleToPermissions("Test", null, "x"));
-            var status = context.SaveChangesWithChecks();
+            var status = context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             //VERIFY
             status.IsValid.ShouldBeTrue(status.GetAllErrors());
@@ -48,7 +51,7 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
 
             //ATTEMPT
             context.Add(new RoleToPermissions("BIG Name", null, "x"));
-            var status = context.SaveChangesWithChecks();
+            var status = context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             //VERIFY
             status.IsValid.ShouldBeFalse();
@@ -65,14 +68,14 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
             using var context = new AuthPermissionsDbContext(options);
             context.Database.EnsureClean();
 
-            context.Add(AuthUser.CreateAuthUser("123", "first@gmail.com", "first", new List<RoleToPermissions>()).Result);
+            context.Add(AuthPSetupHelpers.CreateTestAuthUserOk("123", "first@gmail.com", "first"));
             context.SaveChanges();
 
             context.ChangeTracker.Clear();
 
             //ATTEMPT
-            context.Add(AuthUser.CreateAuthUser("123", "second@gmail.com", "second", new List<RoleToPermissions>()).Result);
-            var status = context.SaveChangesWithChecks();
+            context.Add(AuthPSetupHelpers.CreateTestAuthUserOk("123", "second@gmail.com", "second"));
+            var status = context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             //VERIFY
             status.IsValid.ShouldBeFalse();
@@ -98,7 +101,7 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
             //ATTEMPT
             context.Add(new RoleToPermissions("Test1", null, "x"));
             context.Add(new RoleToPermissions("Test2", null, "x"));
-            var status = context.SaveChangesWithChecks();
+            var status = context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             //VERIFY
             status.IsValid.ShouldBeFalse();
@@ -119,7 +122,7 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
             context.Database.EnsureClean();
 
             context.Add(new RoleToPermissions("Test", null, "x"));
-            context.SaveChangesWithChecks();
+            context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             context.ChangeTracker.Clear();
 
@@ -128,7 +131,7 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
             role.Update("y", "new desc");
             context.Database.ExecuteSqlRaw(
                 "UPDATE authp.RoleToPermissions SET Description = N'concurrent desc' WHERE RoleName = N'Test'");
-            var status = context.SaveChangesWithChecks();
+            var status = context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             //VERIFY
             status.IsValid.ShouldBeFalse(status.GetAllErrors());

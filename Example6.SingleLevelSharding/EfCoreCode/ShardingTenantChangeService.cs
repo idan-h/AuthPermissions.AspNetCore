@@ -4,7 +4,7 @@
 using System.Data;
 using AuthPermissions.AdminCode;
 using AuthPermissions.AspNetCore.GetDataKeyCode;
-using AuthPermissions.AspNetCore.Services;
+using AuthPermissions.AspNetCore.ShardingServices;
 using AuthPermissions.BaseCode.CommonCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using Example6.SingleLevelSharding.EfCoreClasses;
@@ -26,7 +26,7 @@ namespace Example6.SingleLevelSharding.EfCoreCode;
 public class ShardingTenantChangeService : ITenantChangeService
 {
     private readonly DbContextOptions<ShardingSingleDbContext> _options;
-    private readonly IShardingConnections _connections;
+    private readonly IGetSetShardingEntries _shardingService;
     private readonly ILogger _logger;
 
     /// <summary>
@@ -35,19 +35,19 @@ public class ShardingTenantChangeService : ITenantChangeService
     /// </summary>
     public int DeletedTenantId { get; private set; }
 
-    public ShardingTenantChangeService(DbContextOptions<ShardingSingleDbContext> options, 
-        IShardingConnections connections, ILogger<ShardingTenantChangeService> logger)
+    public ShardingTenantChangeService(DbContextOptions<ShardingSingleDbContext> options,
+        IGetSetShardingEntries shardingService, ILogger<ShardingTenantChangeService> logger)
     {
         _options = options;
-        _connections = connections;
+        _shardingService = shardingService;
         _logger = logger;
     }
 
     /// <summary>
     /// This creates a <see cref="CompanyTenant"/> in the given database
     /// </summary>
-    /// <param name="tenant"></param>
-    /// <returns>Null if no errors, otherwise string is shown as an error to the user</returns>
+    /// <param name="tenant">The tenant data used to create a new tenant</param>
+    /// <returns>Returns null if all OK, otherwise the create is rolled back and the return string is shown to the user</returns>
     public async Task<string> CreateNewTenantAsync(Tenant tenant)
     {
         using var context = GetShardingSingleDbContext(tenant.DatabaseInfoName, tenant.GetTenantDataKey());
@@ -97,10 +97,18 @@ public class ShardingTenantChangeService : ITenantChangeService
         if (context == null)
             return $"There is no connection string with the name {tenant.DatabaseInfoName}.";
 
+        //If the database doesn't exist then log it and return
+        if (!await context.Database.CanConnectAsync())
+        {
+            _logger.LogWarning("DeleteTenantData: asked to remove tenant data / database, but no database found. " +
+                               $"Tenant name = {tenant?.TenantFullName ?? "- not available -"}");
+            return null;
+        }
+
         await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         try
         {
-            await DeleteTenantData(tenant.GetTenantDataKey(), context);
+            await DeleteTenantData(tenant.GetTenantDataKey(), context, tenant);
             DeletedTenantId = tenant.TenantId;
 
             await transaction.CommitAsync();
@@ -238,8 +246,17 @@ public class ShardingTenantChangeService : ITenantChangeService
         return null;
     }
 
-    private async Task DeleteTenantData(string dataKey, ShardingSingleDbContext context)
+    private async Task DeleteTenantData(string dataKey, ShardingSingleDbContext context, Tenant? tenant = null)
     {
+        if (tenant?.HasOwnDb == true)
+        {
+            //The tenant its own database, then you should drop the database, but that depends on what SQL Server provider you use.
+            //In this case I can the database because it is on a local SqlServer server.
+            await context.Database.EnsureDeletedAsync();
+            return;
+        }
+
+        //else we remove all the data with the DataKey of the tenant
         var deleteSalesSql = $"DELETE FROM invoice.{nameof(ShardingSingleDbContext.LineItems)} WHERE DataKey = '{dataKey}'";
         await context.Database.ExecuteSqlRawAsync(deleteSalesSql);
         var deleteStockSql = $"DELETE FROM invoice.{nameof(ShardingSingleDbContext.Invoices)} WHERE DataKey = '{dataKey}'";
@@ -261,7 +278,7 @@ public class ShardingTenantChangeService : ITenantChangeService
     /// <returns><see cref="ShardingSingleDbContext"/> or null if connectionName wasn't found in the appsetting file</returns>
     private ShardingSingleDbContext? GetShardingSingleDbContext(string databaseDataName, string dataKey)
     {
-        var connectionString = _connections.FormConnectionString(databaseDataName);
+        var connectionString = _shardingService.FormConnectionString(databaseDataName);
         if (connectionString == null)
             return null;
 

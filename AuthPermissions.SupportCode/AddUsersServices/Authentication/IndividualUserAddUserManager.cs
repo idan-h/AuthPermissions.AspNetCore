@@ -3,6 +3,9 @@
 
 using AuthPermissions.AdminCode;
 using AuthPermissions.BaseCode.CommonCode;
+using AuthPermissions.BaseCode.DataLayer.Classes;
+using AuthPermissions.BaseCode.SetupCode;
+using LocalizeMessagesAndErrors;
 using Microsoft.AspNetCore.Identity;
 using StatusGeneric;
 
@@ -21,6 +24,7 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
     private readonly IAuthTenantAdminService _tenantAdminService;
     private readonly UserManager<TIdentity> _userManager;
     private readonly SignInManager<TIdentity> _signInManager;
+    private readonly IDefaultLocalizer _localizeDefault;
 
     /// <summary>
     /// ctor
@@ -29,12 +33,15 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
     /// <param name="tenantAdminService"></param>
     /// <param name="userManager"></param>
     /// <param name="signInManager"></param>
-    public IndividualUserAddUserManager(IAuthUsersAdminService authUsersAdmin, IAuthTenantAdminService tenantAdminService, UserManager<TIdentity> userManager, SignInManager<TIdentity> signInManager)
+    /// <param name="localizeProvider"></param>
+    public IndividualUserAddUserManager(IAuthUsersAdminService authUsersAdmin, IAuthTenantAdminService tenantAdminService,
+        UserManager<TIdentity> userManager, SignInManager<TIdentity> signInManager, IAuthPDefaultLocalizer localizeProvider)
     {
         _authUsersAdmin = authUsersAdmin;
         _tenantAdminService = tenantAdminService;
         _userManager = userManager;
         _signInManager = signInManager;
+        _localizeDefault = localizeProvider.DefaultLocalizer;
     }
 
     /// <summary>
@@ -50,16 +57,31 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
     public AddNewUserDto UserLoginData { get; private set; }
 
     /// <summary>
-    /// This makes a quick check that the user isn't already has an AuthUser 
+    /// This makes a quick check that the user isn't already has an AuthUser and the password is valid
     /// </summary>
     /// <param name="newUser"></param>
     /// <returns>status, with error if there an user already</returns>
     public async Task<IStatusGeneric> CheckNoExistingAuthUserAsync(AddNewUserDto newUser)
     {
-        var status = new StatusGenericHandler();
+        var status = new StatusGenericLocalizer(_localizeDefault);
         if ((await _authUsersAdmin.FindAuthUserByEmailAsync(newUser.Email))?.Result != null)
-            return status.AddError("There is already an AuthUser with your email, so you can't add another.",
-                nameof(AddNewUserDto.Email));
+            return status.AddErrorString("ExistingUser".ClassLocalizeKey(this, true), //common message
+            "There is already an AuthUser with your email, so you can't add another.",
+            nameof(AddNewUserDto.Email));
+
+        //Check the password matches the 
+        var passwordValidator = new PasswordValidator<TIdentity>();
+        var checkPassword = await passwordValidator.ValidateAsync(_userManager, null, newUser.Password);
+        if (!checkPassword.Succeeded)
+        {
+            foreach (var passwordError in checkPassword.Errors)
+            {
+                status.AddErrorString("BadPasswordFormat".ClassLocalizeKey(this, true),
+                    passwordError.Description, nameof(AddNewUserDto.Password));
+            }
+        }
+
+
         return status;
     }
 
@@ -71,11 +93,13 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
     /// <param name="newUser">The information for creating an AuthUser
     /// It also checks if there is a user already, which could happen if the user's login failed</param>
     /// <returns>status</returns>
-    public async Task<IStatusGeneric> SetUserInfoAsync(AddNewUserDto newUser)
+    public async Task<IStatusGeneric<AuthUser>> SetUserInfoAsync(AddNewUserDto newUser)
     {
         UserLoginData = newUser ?? throw new ArgumentNullException(nameof(newUser));
 
-        var status = new StatusGenericHandler { Message = "New user with claims added" };
+        var status = new StatusGenericLocalizer<AuthUser>(_localizeDefault);
+        status.SetMessageString("SuccessAddUser".ClassLocalizeKey(this, true),
+            "New user with claims added.");
 
         var user = await _userManager.FindByEmailAsync(newUser.Email);
         if (user == null)
@@ -84,11 +108,14 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
             var result = await _userManager.CreateAsync(user, newUser.Password);
             if (!result.Succeeded)
             {
-                result.Errors.Select(x => x.Description).ToList().ForEach(error => status.AddError(error));
+                result.Errors.Select(x => x.Description).ToList().
+                    ForEach(error => status.AddErrorString(this.AlreadyLocalized(), error));
             }
         }
         else if (!await _userManager.CheckPasswordAsync(user, newUser.Password))
-            status.AddError("The user was already known, but the password was wrong.",
+            status.AddErrorString("ExistUserBadPassword".ClassLocalizeKey(this, true),
+                //the problem is that the user was already known, but the password was wrong
+                "Your user is invalid.",
                 nameof(AddNewUserDto.Password));
 
         //We have created the individual user account, so we have the user's UserId.
@@ -98,10 +125,11 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
             ? null
             : (await _tenantAdminService.GetTenantViaIdAsync((int)newUser.TenantId)).Result?.TenantFullName;
 
-        status.CombineStatuses(await _authUsersAdmin.AddNewUserAsync(user.Id, 
-            newUser.Email, newUser.UserName, newUser.Roles, tenantName));
+        if (status.HasErrors)
+            return status;
 
-        return status;
+        return await _authUsersAdmin.AddNewUserAsync(user.Id,
+            newUser.Email, newUser.UserName, newUser.Roles, tenantName);
     }
 
     /// <summary>
@@ -117,7 +145,20 @@ public class IndividualUserAddUserManager<TIdentity> : IAddNewUserManager
         var user = await _userManager.FindByEmailAsync(UserLoginData.Email);
         await _signInManager.SignInAsync(user, isPersistent: UserLoginData.IsPersistent);
 
-        var status = new StatusGenericHandler<AddNewUserDto> { Message = "You have been registered and logged in to this application." };
+        var status = new StatusGenericLocalizer<AddNewUserDto>(_localizeDefault);
+        status.SetMessageString("SuccessRegisterLogin".ClassLocalizeKey(this, true),
+       "You have been registered and logged in to this application.");
         return status.SetResult(UserLoginData);
+    }
+
+    /// <summary>
+    /// If something happens that makes the user invalid, then this will remove the AuthUser.
+    /// Used in <see cref="SignInAndCreateTenant"/> if something goes wrong and we want to undo the tenant
+    /// </summary>
+    /// <param name="userId"></param>
+    /// <returns></returns>
+    public Task<IStatusGeneric> RemoveAuthUserAsync(string userId)
+    {
+        return _authUsersAdmin.DeleteUserAsync(userId);
     }
 }

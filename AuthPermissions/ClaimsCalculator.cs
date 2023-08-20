@@ -1,10 +1,7 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 using AuthPermissions.AdminCode;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
@@ -45,6 +42,7 @@ namespace AuthPermissions
         /// This will return the required AuthP claims, plus any extra claims from registered <see cref="IClaimsAdder"/> methods  
         /// </summary>
         /// <param name="userId"></param>
+        /// That's because the JWT Token uses a claim of type "nameid" to hold the ASP.NET Core user's ID</param>
         /// <returns></returns>
         public async Task<List<Claim>> GetClaimsForAuthUserAsync(string userId)
         {
@@ -93,7 +91,7 @@ namespace AuthPermissions
 
             if (_options.TenantType.IsMultiTenant())
             {
-                //We need to add any RoleTypes.TenantAdminAdd for a tenant user
+                //We need to add any RoleTypes.TenantAutoAdd for a tenant user
 
                 var autoAddPermissions = await _context.AuthUsers
                     .Where(x => x.UserId == userId && x.TenantId != null)

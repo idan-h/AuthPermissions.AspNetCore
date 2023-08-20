@@ -1,16 +1,11 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using AuthPermissions;
 using AuthPermissions.AdminCode.Services;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.DataLayer.Classes.SupportTypes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
-using AuthPermissions.SetupCode;
 using EntityFramework.Exceptions.SqlServer;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Test.TestHelpers;
@@ -25,6 +20,9 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
     {
 
         private readonly ITestOutputHelper _output;
+
+        private readonly AuthPermissionsOptions _authOptionsWithTestEnum =
+            new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) } };
 
         public TestRolesAdminServices(ITestOutputHelper output)
         {
@@ -42,7 +40,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             await context.SetupRolesInDbAsync();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var roles = service.QueryRoleToPermissions().ToList();
@@ -71,7 +69,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             {
                 TenantType = TenantTypes.SingleLevel,
                 InternalData = { EnumPermissionsType = typeof(TestEnum) }
-            });
+            }, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var roles = service.QueryRoleToPermissions(setupUser.UserId).ToList();
@@ -99,7 +97,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             context.AddMultipleUsersWithRolesInDb();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var authUsers = service.QueryUsersUsingThisRole(roleName).ToList();
@@ -121,7 +119,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             await context.SetupRolesInDbAsync();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var status = await service.CreateRoleToPermissionsAsync("Role4", new[] { "One", enumMemberName, "Three" }, "another role");
@@ -152,7 +150,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             await context.SetupRolesInDbAsync();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var status = await service.CreateRoleToPermissionsAsync("Role2", new[] { "One", "Two", "Three" }, "another role");
@@ -176,7 +174,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             await context.SetupRolesInDbAsync();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var status = await service.UpdateRoleToPermissionsAsync(roleName,  new[] { "One" },
@@ -208,7 +206,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             await context.SetupRolesInDbAsync();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var status = await service.DeleteRoleAsync(roleName, false);
@@ -236,7 +234,7 @@ namespace Test.UnitTests.TestAuthPermissionsAdmin
             context.AddMultipleUsersWithRolesInDb();
             context.ChangeTracker.Clear();
 
-            var service = new AuthRolesAdminService(context, new AuthPermissionsOptions { InternalData = { EnumPermissionsType = typeof(TestEnum) }});
+            var service = new AuthRolesAdminService(context, _authOptionsWithTestEnum, "en".SetupAuthPLoggingLocalizer());
 
             //ATTEMPT
             var status = await service.DeleteRoleAsync("Role2", removeFromUser);

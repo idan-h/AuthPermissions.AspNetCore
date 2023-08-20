@@ -1,7 +1,7 @@
 ﻿// Copyright (c) 2022 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using AuthPermissions.AspNetCore.Services;
+using AuthPermissions.AspNetCore.ShardingServices;
 using AuthPermissions.BaseCode.CommonCode;
 using Microsoft.AspNetCore.Http;
 
@@ -20,7 +20,7 @@ namespace AuthPermissions.AspNetCore.GetDataKeyCode
         /// </summary>
         /// <param name="accessor"></param>
         /// <param name="connectionService">Service to get the current connection string for the  </param>
-        public GetShardingDataUserNormal(IHttpContextAccessor accessor, IShardingConnections connectionService)
+        public GetShardingDataUserNormal(IHttpContextAccessor accessor, IGetSetShardingEntries connectionService)
         {
             DataKey = accessor.HttpContext?.User.GetAuthDataKeyFromUser();
             var databaseDataName = accessor.HttpContext?.User.GetDatabaseInfoNameFromUser();

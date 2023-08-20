@@ -2,10 +2,12 @@
 // Licensed under MIT license. See License.txt in the project root for license information.
 
 using System.Collections.Generic;
+using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using AuthPermissions.BaseCode.DataLayer.Classes.SupportTypes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
+using Test.StubClasses;
 using Xunit.Extensions.AssertExtensions;
 
 namespace Test.TestHelpers;
@@ -28,9 +30,7 @@ public static class SetupUserWithRoleExtensions
             ? new List<RoleToPermissions> { rolePer2 }
             : new List<RoleToPermissions>();
 
-        var tenant = userHasTenant
-            ? Tenant.CreateSingleTenant("Tenant1", rolesForTenant).Result 
-                ?? throw new AuthPermissionsException("CreateSingleTenant had errors.")
+        var tenant = userHasTenant ? AuthPSetupHelpers.CreateTestSingleTenantOk("Tenant1", rolesForTenant)
             : null;
 
         context.AddRange(rolePer1, rolePer2);
@@ -38,12 +38,11 @@ public static class SetupUserWithRoleExtensions
             ? new List<RoleToPermissions>() { rolePer1, rolePer2 }
             : new List<RoleToPermissions>() { rolePer1 };
 
-        var status = AuthUser.CreateAuthUser("User1", "User1@g.com", null, rolesForUsers, tenant);
-        status.IsValid.ShouldBeTrue(status.GetAllErrors());
+        var authUser = AuthPSetupHelpers.CreateTestAuthUserOk("User1", "User1@g.com", null, rolesForUsers, tenant);
 
-        context.Add(status.Result);
+        context.Add(authUser);
         context.SaveChanges();
 
-        return status.Result;
+        return authUser;
     }
 }

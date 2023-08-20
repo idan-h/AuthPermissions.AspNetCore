@@ -1,19 +1,28 @@
 ﻿@using ExamplesCommonCode.CommonAdmin
-@model ExamplesCommonCode.CommonAdmin.RoleCreateUpdateDto
+@using LocalizeMessagesAndErrors
+@inject ISimpleLocalizer SimpleLocalizer
+@model RoleCreateUpdateDto
+
+@{
+    var selectedLocalized = SimpleLocalizer.LocalizeString("Selected", this);
+    var selectLocalized = SimpleLocalizer.LocalizeString("Select", this);
+}
 
 <table class="table">
     <thead>
     <tr>
         <th>
-            Group
+            @SimpleLocalizer.LocalizeString("Group", this)
         </th>
         <th>
-            Description
+            @SimpleLocalizer.LocalizeString("Description", this)
         </th>
         <th>
-            Permission
+            @SimpleLocalizer.LocalizeString("Permission", this)
         </th>
-        <th>Selected?</th>
+        <th>
+            @SimpleLocalizer.LocalizeString("Selected?", this)
+        </th>
     </tr>
     </thead>
     <tbody id="permission-selection">
@@ -36,8 +45,11 @@
                     @Model.PermissionsWithSelect[i].Selected,
                     new { id = Model.PermissionsWithSelect[i].PermissionName})
                 <button type="button" class='btn-sm  @(Model.PermissionsWithSelect[i].Selected ? "btn-primary" : "btn-secondary")'
-                        onclick="TogglePermissionSelect(this, '@Model.PermissionsWithSelect[i].PermissionName')">
-                    @(Model.PermissionsWithSelect[i].Selected ? "Selected" : "Select")
+                        onclick="TogglePermissionSelect(this, '@Model.PermissionsWithSelect[i].PermissionName',
+                        '@selectLocalized', '@selectedLocalized')">
+                    @(Model.PermissionsWithSelect[i].Selected 
+                        ? selectedLocalized
+                        : selectLocalized)
                 </button>
             </td>
         </tr>

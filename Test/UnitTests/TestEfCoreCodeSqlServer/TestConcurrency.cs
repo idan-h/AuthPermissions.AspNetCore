@@ -2,10 +2,13 @@
 // Licensed under MIT license. See License.txt in the project root for license information.
 
 using System.Linq;
+using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using EntityFramework.Exceptions.SqlServer;
 using Microsoft.EntityFrameworkCore;
+using Test.StubClasses;
+using Test.TestHelpers;
 using TestSupport.EfHelpers;
 using Xunit;
 using Xunit.Extensions.AssertExtensions;
@@ -36,7 +39,7 @@ namespace Test.UnitTests.TestEfCoreCodeSqlServer
             var entity = context.RoleToPermissions.Single();
             context.Database.ExecuteSqlInterpolated($"UPDATE authp.RoleToPermissions SET PackedPermissionsInRole = 'XYZ' WHERE RoleName = {initial.RoleName}");
             entity.Update("ABC");
-            var status = context.SaveChangesWithChecks();
+            var status = context.SaveChangesWithChecks("en".SetupAuthPLoggingLocalizer().DefaultLocalizer);
 
             //VERIFY
             status.IsValid.ShouldBeFalse(status.GetAllErrors());

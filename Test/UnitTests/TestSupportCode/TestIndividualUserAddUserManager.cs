@@ -7,6 +7,7 @@ using AuthPermissions;
 using AuthPermissions.AdminCode;
 using AuthPermissions.AspNetCore;
 using AuthPermissions.AspNetCore.GetDataKeyCode;
+using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
 using AuthPermissions.SupportCode.AddUsersServices;
@@ -15,6 +16,7 @@ using Example3.InvoiceCode.AppStart;
 using Example3.InvoiceCode.EfCoreCode;
 using Example3.MvcWebApp.IndividualAccounts.Data;
 using Example3.MvcWebApp.IndividualAccounts.PermissionsCode;
+using LocalizeMessagesAndErrors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +58,9 @@ public class TestIndividualUserAddUserManager
                     dbOptions.MigrationsHistoryTable(StartupExtensions.InvoicesDbContextHistoryName)));
 
         services.AddScoped<IGetDataKeyFromUser>(x => new StubGetDataKeyFilter(""));
+        services.AddSingleton(typeof(IDefaultLocalizer<>), typeof(DefaultLocalizer<>));
+
+        services.AddSingleton("en".SetupAuthPLoggingLocalizer());
         services.RegisterAuthPermissions<Example3Permissions>(options =>
         {
             options.TenantType = TenantTypes.SingleLevel;
@@ -94,7 +99,7 @@ public class TestIndividualUserAddUserManager
         context.AddMultipleUsersWithRolesInDb();
 
         var service = _serviceProvider.GetRequiredService<IAddNewUserManager>();
-        var userData = new AddNewUserDto { Email = email };
+        var userData = new AddNewUserDto { Email = email, Password = "NewUser@g1.com" };
 
         context.ChangeTracker.Clear();
 
@@ -103,6 +108,29 @@ public class TestIndividualUserAddUserManager
 
         //VERIFY
         status.IsValid.ShouldEqual(isValid);
+    }
+
+    [Theory]
+    [InlineData("123", false)]
+    [InlineData("NewUser@g1.com", true)]
+    public async Task TestCheckNoExistingAuthUserAsync_Password(string password, bool isValid)
+    {
+        //SETUP
+        var context = _serviceProvider.GetRequiredService<AuthPermissionsDbContext>();
+        context.Database.EnsureClean();
+        context.AddMultipleUsersWithRolesInDb();
+
+        var service = _serviceProvider.GetRequiredService<IAddNewUserManager>();
+        var userData = new AddNewUserDto { Email = "AnotherEmail", Password = password };
+
+        context.ChangeTracker.Clear();
+
+        //ATTEMPT
+        var status = await service.CheckNoExistingAuthUserAsync(userData);
+
+        //VERIFY
+        status.IsValid.ShouldEqual(isValid);
+        _output.WriteLine(status.GetAllErrors());
     }
 
     [Fact]

@@ -13,5 +13,4 @@ public class InviteUserResult
 
     public string Message { get; }
     public string Url { get;  }
-
 }

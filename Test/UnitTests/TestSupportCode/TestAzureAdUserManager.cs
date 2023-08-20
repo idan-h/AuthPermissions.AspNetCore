@@ -3,6 +3,7 @@
 
 using System.Linq;
 using System.Threading.Tasks;
+using AuthPermissions.AdminCode;
 using AuthPermissions.AdminCode.Services;
 using AuthPermissions.AspNetCore.OpenIdCode;
 using AuthPermissions.BaseCode;
@@ -38,15 +39,18 @@ public class TestAzureAdUserManager
         {
             TenantType = tenantType
         };
-        var userAdmin = new AuthUsersAdminService(context, new StubSyncAuthenticationUsersFactory(), authOptions);
-        var tenantAdmin = new AuthTenantAdminService(context, authOptions, new StubITenantChangeServiceFactory(), null);
+        var userAdmin = new AuthUsersAdminService(context, new StubSyncAuthenticationUsersFactory(), 
+            authOptions, "en".SetupAuthPLoggingLocalizer());
+        var tenantAdmin = new AuthTenantAdminService(context, authOptions, 
+            "en".SetupAuthPLoggingLocalizer(), new StubTenantChangeServiceFactory(), null);
         var azureAdStub = new StubAzureAdAccessService();
         var azureOptions = Options.Create(new AzureAdOptions{ AzureAdApproaches = "Find,Create"});
 
-        var service = new AzureAdNewUserManager(userAdmin, tenantAdmin, azureAdStub, azureOptions);
+        var service = new AzureAdNewUserManager(userAdmin, tenantAdmin, azureAdStub, azureOptions,
+            "en".SetupAuthPLoggingLocalizer());
 
         if (tenantType == TenantTypes.SingleLevel)
-            context.Add(Tenant.CreateSingleTenant("Company").Result);
+            context.Add(AuthPSetupHelpers.CreateTestSingleTenantOk("Company"));
         else if (tenantType == TenantTypes.HierarchicalTenant)
             await context.BulkLoadHierarchicalTenantInDbAsync();
         context.SaveChanges();

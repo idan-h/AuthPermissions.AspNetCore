@@ -1,9 +1,6 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions.AdminCode;
 using AuthPermissions.AdminCode.Services;
 using AuthPermissions.AspNetCore.AccessTenantData;
@@ -13,6 +10,8 @@ using AuthPermissions.AspNetCore.JwtTokenCode;
 using AuthPermissions.AspNetCore.OpenIdCode;
 using AuthPermissions.AspNetCore.PolicyCode;
 using AuthPermissions.AspNetCore.Services;
+using AuthPermissions.AspNetCore.ShardingServices;
+using AuthPermissions.AspNetCore.ShardingServices.DatabaseSpecificMethods;
 using AuthPermissions.AspNetCore.StartupServices;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.CommonCode;
@@ -24,11 +23,11 @@ using AuthPermissions.BulkLoadServices;
 using AuthPermissions.BulkLoadServices.Concrete;
 using AuthPermissions.SetupCode;
 using AuthPermissions.SetupCode.Factories;
+using LocalizeMessagesAndErrors;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using RunMethodsSequentially;
 
 namespace AuthPermissions.AspNetCore
@@ -123,43 +122,107 @@ namespace AuthPermissions.AspNetCore
         }
 
         /// <summary>
-        /// This allows you to replace the default <see cref="ShardingConnections"/> code with you own code.
-        /// This allows you to add you own approach to managing sharding databases
-        /// NOTE: The <see cref="IOptionsSnapshot{TOptions}"/> of the connection strings and the sharding settings file are still registered
+        /// This sets up the AuthP localization system, which uses the Net.LocalizeMessagesAndErrors library
         /// </summary>
-        /// <typeparam name="TYourShardingCode">Your class that implements the <see cref="IShardingConnections"/> interface.</typeparam>
+        /// <typeparam name="TResource">This should be a class within your ASP.NET Core app which
+        /// has .NET localization setup</typeparam>
         /// <param name="setupData"></param>
+        /// <param name="supportedCultures">Provide list of supported cultures. This is used to only log
+        /// missing resource entries if its supported culture. NOTE: if null, then it will log every missing culture.</param>
         /// <returns></returns>
-        /// <exception cref="AuthPermissionsException"></exception>
-        public static AuthSetupData ReplaceShardingConnections<TYourShardingCode>(this AuthSetupData setupData)
-            where TYourShardingCode : class, IShardingConnections
+        public static AuthSetupData SetupAuthPLocalization<TResource>(this AuthSetupData setupData,
+            string[] supportedCultures)
         {
-            if (!setupData.Options.TenantType.IsSharding())
-                throw new AuthPermissionsException(
-                    $"The sharding feature isn't turned on so you can't override the {nameof(ShardingConnections)} service.");
-
-            setupData.Services.AddScoped<IShardingConnections, TYourShardingCode>();
-            setupData.Options.InternalData.OverrideShardingConnections = true;
+            setupData.Options.InternalData.AuthPResourceType = typeof(TResource);
+            setupData.Options.InternalData.SupportedCultures = supportedCultures;
 
             return setupData;
         }
 
         /// <summary>
-        /// This allows you to register your implementation of the <see cref="IShardingSelectDatabase"/> service.
-        /// This service is used in the "sign up" feature in the SupportCode part, or if you want to use this in your own code.
+        /// This sets up the AuthP Sharding feature that 
+        /// You must have set the <see cref="AuthPermissionsOptions.TenantType"/>  before calling this extension method
         /// </summary>
-        /// <typeparam name="TGetDatabase">Your class that implements the <see cref="IShardingSelectDatabase"/> interface.</typeparam>
         /// <param name="setupData"></param>
+        /// <param name="defaultShardingEntry">Optional: The default doesn't allows tenants being stored the AuthP database.
+        /// If you want store tenants in the AuthP database, or change any other data, then provide a instance of the
+        /// <see cref="ShardingEntryOptions"/> with the ctor hybridMode parameter set to true.</param>
         /// <returns></returns>
-        /// <exception cref="AuthPermissionsException"></exception>
-        public static AuthSetupData RegisterShardingGetDatabase<TGetDatabase>(this AuthSetupData setupData)
-            where TGetDatabase : class, IShardingSelectDatabase
+        public static AuthSetupData SetupMultiTenantSharding(this AuthSetupData setupData, 
+            ShardingEntryOptions defaultShardingEntry = null)
         {
-            if (!setupData.Options.TenantType.IsSharding())
+            if (!setupData.Options.TenantType.IsMultiTenant())
                 throw new AuthPermissionsException(
-                    $"The sharding feature isn't turned on so adding your {nameof(IShardingSelectDatabase)} service isn't useful.");
+                    $"You must define what type of multi-tenant structure you want, i.e {TenantTypes.SingleLevel} or {TenantTypes.HierarchicalTenant}.");
 
-            setupData.Services.AddScoped<IShardingSelectDatabase, TGetDatabase>();
+            setupData.Options.TenantType |= TenantTypes.AddSharding;
+
+            if (setupData.Options.Configuration == null)
+                throw new AuthPermissionsException(
+                    $"You must set the {nameof(AuthPermissionsOptions.Configuration)} to the ASP.NET Core Configuration when using Sharding");
+
+#region AuthP version 6 changes
+            //This defines the default sharding entry to use when there are no entries
+            //This defaults to not using the AuthP database to hold tenants
+            //You need to supply a ShardingEntryOptions with the HybridMode as true
+            //if you want store tenants in the AuthP database
+            defaultShardingEntry ??= new ShardingEntryOptions(false);
+            setupData.Services.AddSingleton(defaultShardingEntry);
+#endregion
+
+            //This gets access to the ConnectionStrings
+            setupData.Services.Configure<ConnectionStringsOption>(setupData.Options.Configuration.GetSection("ConnectionStrings"));
+            setupData.Services.AddTransient<ILinkToTenantDataService, LinkToTenantDataService>();
+
+#region AuthP version 6 changes
+            //This changed in version 6 of the AuthP library
+            //The GetSetShardingEntriesFileStoreCache handles reading back an ShardingEntry that was undated during the same HTTP request
+            //This change is because IOptionsMonitor service won't get a change to the json file until an new HTTP request has happened 
+            setupData.Services.AddTransient<IGetSetShardingEntries, GetSetShardingEntriesFileStoreCache>();
+            //New version service that makes it easier to create / delete tenants when using sharding
+            setupData.Services.AddTransient<IShardingOnlyTenantAddRemove, ShardingOnlyTenantAddRemove>();
+#endregion
+
+            switch (setupData.Options.LinkToTenantType)
+            {
+                case LinkToTenantTypes.OnlyAppUsers:
+                    setupData.Services
+                        .AddScoped<IGetShardingDataFromUser, GetShardingDataUserAccessTenantData>();
+                    break;
+                case LinkToTenantTypes.AppAndHierarchicalUsers:
+                    setupData.Services
+                        .AddScoped<IGetShardingDataFromUser,
+                            GetShardingDataAppAndHierarchicalUsersAccessTenantData>();
+                    break;
+                default:
+                    setupData.Services.AddScoped<IGetShardingDataFromUser, GetShardingDataUserNormal>();
+                    break;
+            }
+
+            //This sets up a single IDatabaseSpecificMethods for shading using your selected database.
+            //There are few alternatives
+            //1. If you want your shard tenants using a different database, e.g. Postgres for AuthPermissionsDbContext but SqlServer for tenants
+            //2. You can have multiple database types for sharding, e.g. Postgres and SqlServer
+            //3. If you are using the custom database feature you should remove the switch and select your custom IDatabaseSpecificMethods service
+            switch (setupData.Options.InternalData.AuthPDatabaseType)
+            {
+                case AuthPDatabaseTypes.NotSet:
+                    throw new AuthPermissionsException("You must define what database type you will be using.");
+                case AuthPDatabaseTypes.SqliteInMemory:
+                    setupData.Services.AddScoped<IDatabaseSpecificMethods, SqliteInMemorySpecificMethods>();
+                    break;
+                case AuthPDatabaseTypes.SqlServer:
+                    setupData.Services.AddScoped<IDatabaseSpecificMethods, SqlServerDatabaseSpecificMethods>();
+                    break;
+                case AuthPDatabaseTypes.PostgreSQL:
+                    setupData.Services.AddScoped<IDatabaseSpecificMethods, PostgresDatabaseSpecificMethods>();
+                    break;
+                case AuthPDatabaseTypes.CustomDatabase:
+                    throw new AuthPermissionsException(
+                        $"If you are using a custom database you must build your own version of the {nameof(SetupMultiTenantSharding)} extension method."); ;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
 
             return setupData;
         }
@@ -218,7 +281,9 @@ namespace AuthPermissions.AspNetCore
             setupData.RegisterCommonServices();
 
             var serviceProvider = setupData.Services.BuildServiceProvider();
-            var context = serviceProvider.GetRequiredService<AuthPermissionsDbContext>();
+            var contextOptions = serviceProvider.GetRequiredService<DbContextOptions<AuthPermissionsDbContext>>();
+            //This creates an AuthP database instance without any event change listeners
+            var context = new AuthPermissionsDbContext(contextOptions);
             context.Database.EnsureCreated();
 
             var findUserIdService = serviceProvider.GetService<IAuthPServiceFactory<IFindUserInfoService>>();
@@ -261,6 +326,11 @@ namespace AuthPermissions.AspNetCore
             setupData.Services.AddTransient<IBulkLoadTenantsService, BulkLoadTenantsService>();
             setupData.Services.AddTransient<IBulkLoadUsersService, BulkLoadUsersService>();
 
+            //Localization services
+            //NOTE: If you want to use the localization services you need to setup / register the .NET IStringLocalizer<TResource> service
+            setupData.Services.RegisterDefaultLocalizer("en", setupData.Options.InternalData.SupportedCultures);
+            setupData.Services.AddSingleton<IAuthPDefaultLocalizer, AuthPDefaultLocalizer>();
+
             //Other services
             setupData.Services.AddTransient<IDisableJwtRefreshToken, DisableJwtRefreshToken>();
             if (setupData.Options.ConfigureAuthPJwtToken != null)
@@ -291,38 +361,7 @@ namespace AuthPermissions.AspNetCore
             setupData.Services.AddScoped<ILinkToTenantDataService, LinkToTenantDataService>();
             if (setupData.Options.TenantType.IsSharding())
             {
-                if (setupData.Options.Configuration == null)
-                    throw new AuthPermissionsException(
-                        $"You must set the {nameof(AuthPermissionsOptions.Configuration)} to the ASP.NET Core Configuration when using Sharding");
 
-                //This gets access to the ConnectionStrings
-                setupData.Services.Configure<ConnectionStringsOption>(setupData.Options.Configuration.GetSection("ConnectionStrings"));
-                //This gets access to the ShardingData in the separate sharding settings file
-                setupData.Services.Configure<ShardingSettingsOption>(setupData.Options.Configuration);
-                //This adds the sharding settings file to the configuration
-                var shardingFileName = AuthPermissionsOptions.FormShardingSettingsFileName(setupData.Options.SecondPartOfShardingFile);
-                setupData.Options.Configuration.AddJsonFile(shardingFileName, optional: true, reloadOnChange: true);
-
-                if (!setupData.Options.InternalData.OverrideShardingConnections)
-                    //Don't add the default service if the developer has added their own service
-                    setupData.Services.AddScoped<IShardingConnections, ShardingConnections>();
-                setupData.Services.AddScoped<ILinkToTenantDataService, LinkToTenantDataService>();
-
-                switch (setupData.Options.LinkToTenantType)
-                {
-                    case LinkToTenantTypes.OnlyAppUsers:
-                        setupData.Services
-                            .AddScoped<IGetShardingDataFromUser, GetShardingDataUserAccessTenantData>();
-                        break;
-                    case LinkToTenantTypes.AppAndHierarchicalUsers:
-                        setupData.Services
-                            .AddScoped<IGetShardingDataFromUser,
-                                GetShardingDataAppAndHierarchicalUsersAccessTenantData>();
-                        break;
-                    default:
-                        setupData.Services.AddScoped<IGetShardingDataFromUser, GetShardingDataUserNormal>();
-                        break;
-                }
             }
             else
             {

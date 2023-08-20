@@ -1,16 +1,14 @@
 ﻿// Copyright (c) 2021 Jon P Smith, GitHub: JonPSmith, web: http://www.thereformedprogrammer.net/
 // Licensed under MIT license. See License.txt in the project root for license information.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AuthPermissions.AdminCode;
 using AuthPermissions.BaseCode;
 using AuthPermissions.BaseCode.DataLayer.Classes;
 using AuthPermissions.BaseCode.DataLayer.Classes.SupportTypes;
 using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.SetupCode;
+using LocalizeMessagesAndErrors;
+using LocalizeMessagesAndErrors.UnitTestingCode;
 using Microsoft.EntityFrameworkCore;
 using StatusGeneric;
 
@@ -19,6 +17,7 @@ namespace AuthPermissions.BulkLoadServices.Concrete
     /// <summary>
     /// Bulk load multiple tenants from a list of <see cref="BulkLoadTenantDto"/>
     /// This works with a single-level tenant scheme and a hierarchical tenant scheme
+    /// NOTE: Bulk load doesn't use localization because it doesn't provide to the users
     /// </summary>
     public class BulkLoadTenantsService : IBulkLoadTenantsService
     {
@@ -75,12 +74,13 @@ namespace AuthPermissions.BulkLoadServices.Concrete
                     var rolesStatus = GetCheckTenantRoles(tenantDefinition.TenantRolesCommaDelimited,
                         tenantDefinition.TenantName);
                     status.CombineStatuses(rolesStatus);
-                    var tenantStatus = Tenant.CreateSingleTenant(tenantDefinition.TenantName, rolesStatus.Result);
+                    var tenantStatus = Tenant.CreateSingleTenant(tenantDefinition.TenantName, 
+                        new StubDefaultLocalizer(), rolesStatus.Result);
                     
                     if (status.CombineStatuses(tenantStatus).IsValid)
                     {
                         if ((options.TenantType & TenantTypes.AddSharding) != 0)
-                            tenantStatus.Result.UpdateShardingState(options.ShardingDefaultDatabaseInfoName, false);
+                            tenantStatus.Result.UpdateShardingState(options.DefaultShardingEntryName, false);
                         _context.Add(tenantStatus.Result);
                     }
                 }
@@ -88,7 +88,7 @@ namespace AuthPermissions.BulkLoadServices.Concrete
                 if (status.HasErrors)
                     return status;
 
-                return await _context.SaveChangesWithChecksAsync();
+                return await _context.SaveChangesWithChecksAsync(new StubDefaultLocalizer());
             }
 
             //--------------------------------------------------
@@ -123,15 +123,16 @@ namespace AuthPermissions.BulkLoadServices.Concrete
                         var parent = tenantInfo.Parent == null
                             ? null
                             : await _context.Tenants.SingleAsync(x => x.TenantId == tenantInfo.Parent.CreatedTenantId);
-                        var newTenantStatus = Tenant.CreateHierarchicalTenant(fullname, parent, rolesStatus.Result);
+                        var newTenantStatus = Tenant.CreateHierarchicalTenant(fullname, parent, 
+                            new StubDefaultLocalizer(), rolesStatus.Result);
                         _context.Add(newTenantStatus.Result);
 
                         if (status.IsValid)
                         {
                             _context.Add(newTenantStatus.Result);
                             if ((options.TenantType & TenantTypes.AddSharding) != 0)
-                                newTenantStatus.Result.UpdateShardingState(options.ShardingDefaultDatabaseInfoName, false);
-                            status.CombineStatuses(await _context.SaveChangesWithChecksAsync());
+                                newTenantStatus.Result.UpdateShardingState(options.DefaultShardingEntryName, false);
+                            status.CombineStatuses(await _context.SaveChangesWithChecksAsync(new StubDefaultLocalizer()));
 
                             //Now we copy the data so that a child can access to the parent data
                             tenantInfo.CreatedTenantId = newTenantStatus.Result.TenantId;

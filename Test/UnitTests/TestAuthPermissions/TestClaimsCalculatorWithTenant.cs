@@ -14,6 +14,7 @@ using AuthPermissions.BaseCode.DataLayer.EfCode;
 using AuthPermissions.BaseCode.PermissionsCode;
 using AuthPermissions.BaseCode.SetupCode;
 using AuthPermissions.SetupCode;
+using Test.StubClasses;
 using Test.TestHelpers;
 using TestSupport.EfHelpers;
 using Xunit;
@@ -119,10 +120,10 @@ namespace Test.UnitTests.TestAuthPermissions
             using var context = new AuthPermissionsDbContext(options);
             context.Database.EnsureCreated();
 
-            var tenant = Tenant.CreateSingleTenant("Tenant1").Result
-                         ?? throw new AuthPermissionsException("CreateSingleTenant had errors.");
+            var tenant = AuthPSetupHelpers.CreateTestSingleTenantOk("Tenant1");
             var role = new RoleToPermissions("Role1", null, $"{((char) 1)}");
-            var user = AuthUser.CreateAuthUser("User1", "User1@g.com", null, new List<RoleToPermissions>() { role }, tenant).Result;
+            var user = AuthPSetupHelpers.CreateTestAuthUserOk("User1", "User1@g.com", null, 
+                new List<RoleToPermissions>() { role }, tenant);
 
             context.AddRange(tenant, role, user);
             context.SaveChanges();
@@ -149,11 +150,11 @@ namespace Test.UnitTests.TestAuthPermissions
             using var context = new AuthPermissionsDbContext(options);
             context.Database.EnsureCreated();
 
-            var tenant = Tenant.CreateSingleTenant("Tenant1").Result
-                         ?? throw new AuthPermissionsException("CreateSingleTenant had errors.");
+            var tenant = AuthPSetupHelpers.CreateTestSingleTenantOk("Tenant1");
             tenant.UpdateShardingState("MyConnectionName", false);
             var role = new RoleToPermissions("Role1", null, $"{((char)1)}");
-            var user = AuthUser.CreateAuthUser("User1", "User1@g.com", null, new List<RoleToPermissions>() { role }, tenant).Result;
+            var user = AuthPSetupHelpers.CreateTestAuthUserOk("User1", "User1@g.com", null, 
+                new List<RoleToPermissions>() { role }, tenant);
 
             context.AddRange(tenant, role, user);
             context.SaveChanges();
@@ -184,11 +185,11 @@ namespace Test.UnitTests.TestAuthPermissions
             using var context = new AuthPermissionsDbContext(options);
             context.Database.EnsureCreated();
 
-            var tenant = Tenant.CreateSingleTenant("Tenant1").Result
-                         ?? throw new AuthPermissionsException("CreateSingleTenant had errors.");
+            var tenant = AuthPSetupHelpers.CreateTestSingleTenantOk("Tenant1");
             tenant.UpdateShardingState("MyConnectionName", true);
             var role = new RoleToPermissions("Role1", null, $"{((char)1)}");
-            var user = AuthUser.CreateAuthUser("User1", "User1@g.com", null, new List<RoleToPermissions>() { role }, tenant).Result;
+            var user = AuthPSetupHelpers.CreateTestAuthUserOk("User1", "User1@g.com", null, 
+                new List<RoleToPermissions>() { role }, tenant);
 
             context.AddRange(tenant, role, user);
             context.SaveChanges();
@@ -219,10 +220,10 @@ namespace Test.UnitTests.TestAuthPermissions
             using var context = new AuthPermissionsDbContext(options);
             context.Database.EnsureCreated();
 
-            var tenant = Tenant.CreateSingleTenant("Tenant1").Result
-                         ?? throw new AuthPermissionsException("CreateSingleTenant had errors.");
+            var tenant = AuthPSetupHelpers.CreateTestSingleTenantOk("Tenant1");
             var role = new RoleToPermissions("Role1", null, $"{((char)1)}");
-            var user = AuthUser.CreateAuthUser("User1", "User1@g.com", null, new List<RoleToPermissions>() { role }, tenant).Result;
+            var user = AuthPSetupHelpers.CreateTestAuthUserOk("User1", "User1@g.com", null,
+                new List<RoleToPermissions> { role }, tenant);
             user.UpdateIsDisabled(true);
 
             context.AddRange(tenant, role, user);
